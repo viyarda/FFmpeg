@@ -47,6 +47,196 @@
 #include "mpegvideo.h"
 #include "rectangle.h"
 #include "thread.h"
+//modify by zhoutou 20170702
+int frame_num=0;
+int qp_get=0;
+//BOOL rec=TRUE;
+char res[20][500];
+int type=0;
+int bit_loc=0;
+int key_len_dec=0;
+char key[500];
+static char pw_dec[500];
+int key_time=0;
+int key_loc=0;
+extern char res_mb[20][500];
+
+static int dictionary_dec(char c)
+{
+    int res;
+    if(c=='0')
+    {
+        res=0;
+    }
+    if(c=='1')
+	   {
+           res=1;
+       }
+    if(c=='2')
+	   {
+           res=2;
+       }
+    if(c=='3')
+	   {
+           res=3;
+       }
+    if(c=='4')
+	   {
+           res=4;
+       }
+    if(c=='5')
+    {
+        res=5;
+    }
+    if(c=='6')
+	   {
+           res=6;
+       }
+    if(c=='7')
+	   {
+           res=7;
+       }
+    if(c=='8')
+	   {
+           res=8;
+       }
+    if(c=='9')
+	   {
+           res=9;
+       }
+    if(c=='a'||c=='A')
+    {
+        res=10;
+    }
+    if(c=='b'||c=='B')
+    {
+        res=11;
+    }
+    if(c=='c'||c=='C')
+   	{
+        res=12;
+    }
+    if(c=='d'||c=='D')
+	   {
+           res=13;
+       }
+    if(c=='e'||c=='E')
+	   {
+           res=14;
+       }
+    if(c=='f'||c=='F')
+		  {
+              res=15;
+          }
+    if(c=='g'||c=='G')
+		  {
+              res=16;
+          }
+    if(c=='h'||c=='H')
+			 {
+                 res=17;
+             }
+    if(c=='i'||c=='I')
+		  {
+              res=18;
+          }
+    
+    
+    if(c=='J'||c=='j')
+			 {
+                 res=19;
+             }
+    if(c=='k'||c=='K')
+		  {
+              res=20;
+          }
+    if(c=='l'||c=='L')
+		  {
+              res=21;
+          }
+    if(c=='m'||c=='M')
+		  {
+              res=22;
+          }
+    if(c=='n'||c=='N')
+			 {
+                 res=23;
+             }
+    if(c=='o'||c=='O')
+		  {
+              res=24;
+          }
+    if(c=='P'||c=='p')
+		  {
+              res=25;
+          }
+    if(c=='q'||c=='Q')
+		  {
+              res=26;
+          }
+    if(c=='r'||c=='R')
+		  {
+              res=27;
+          }
+    if(c=='s'||c=='S')
+		  {
+              res=28;
+          }
+    if(c=='t'||c=='T')
+		  {
+              res=29;
+          }
+    if(c=='u'||c=='U')
+		  {
+              res=30;
+          }
+    if(c=='V'||c=='v')
+		  {
+              res=31;
+          }
+    if(c=='w'||c=='W')
+		  {
+              res=32;
+          }
+    if(c=='X'||c=='x')
+		  {
+              res=33;
+          }
+    if(c=='Y'||c=='y')
+		  {
+              res=34;
+          }
+    if(c=='z'||c=='Z')
+    {
+        res=35;
+    }
+    if(c==' ')
+		  {
+              res=36;
+          }
+    if(c=='(')
+    {
+        res=37;
+    }
+    if(c==')')
+		  {
+              res=38;
+          }
+    if(c=='*')
+		  {
+              res=40;
+          }
+    if(c=='=')
+		  {
+              res=41;
+          }
+    if(c=='/')
+		  {
+              res=39;
+          }
+    return res;
+}
+//modify by zhoutou 20170702 end
 
 static const uint8_t field_scan[16+1] = {
     0 + 0 * 4, 0 + 1 * 4, 1 + 0 * 4, 0 + 2 * 4,
@@ -1426,15 +1616,17 @@ static int h264_field_start(H264Context *h, const H264SliceContext *sl,
      * We have to do that before the "dummy" in-between frame allocation,
      * since that can modify h->cur_pic_ptr. */
     if (h->first_field) {
+        //modify by zhoutou 20170702
+        int last_field = last_pic_structure == PICT_BOTTOM_FIELD;
         av_assert0(h->cur_pic_ptr);
         av_assert0(h->cur_pic_ptr->f->buf[0]);
         assert(h->cur_pic_ptr->reference != DELAYED_PIC_REF);
 
         /* Mark old field/frame as completed */
-        if (h->cur_pic_ptr->tf.owner == h->avctx) {
-            ff_thread_report_progress(&h->cur_pic_ptr->tf, INT_MAX,
-                                      last_pic_structure == PICT_BOTTOM_FIELD);
+        if (h->cur_pic_ptr->tf.owner[last_field] == h->avctx) {
+            ff_thread_report_progress(&h->cur_pic_ptr->tf, INT_MAX, last_field);
         }
+        //modify by zhoutou 20170702 end
 
         /* figure out if we have a complementary field pair */
         if (!FIELD_PICTURE(h) || h->picture_structure == last_pic_structure) {
@@ -1571,7 +1763,11 @@ static int h264_field_start(H264Context *h, const H264SliceContext *sl,
             return AVERROR_INVALIDDATA;
         }
     } else {
+        //modify by zhoutou 20170702
+        int field = h->picture_structure == PICT_BOTTOM_FIELD;
         release_unused_pictures(h, 0);
+        h->cur_pic_ptr->tf.owner[field] = h->avctx;
+        //modify by zhoutou 20170702 end
     }
     /* Some macroblocks can be accessed before they're available in case
     * of lost slices, MBAFF or threading. */
@@ -1657,6 +1853,10 @@ static int h264_slice_header_parse(const H264Context *h, H264SliceContext *sl,
     sl->first_mb_addr = get_ue_golomb_long(&sl->gb);
 
     slice_type = get_ue_golomb_31(&sl->gb);
+    //modify by zhoutou 20170702
+    if (slice_type > 20)
+        slice_type-=20;
+    //modify by zhoutou 20170702 end
     if (slice_type > 9) {
         av_log(h->avctx, AV_LOG_ERROR,
                "slice type %d too large at %d\n",
@@ -1781,10 +1981,15 @@ static int h264_slice_header_parse(const H264Context *h, H264SliceContext *sl,
     }
     if ((pps->weighted_pred && sl->slice_type_nos == AV_PICTURE_TYPE_P) ||
         (pps->weighted_bipred_idc == 1 &&
-         sl->slice_type_nos == AV_PICTURE_TYPE_B))
-        ff_h264_pred_weight_table(&sl->gb, sps, sl->ref_count,
-                                  sl->slice_type_nos, &sl->pwt, h->avctx);
-
+         sl->slice_type_nos == AV_PICTURE_TYPE_B)) {
+            //modify by zhoutou 20170702
+            ret = ff_h264_pred_weight_table(&sl->gb, sps, sl->ref_count,
+                                            sl->slice_type_nos, &sl->pwt, h->avctx);
+            if (ret < 0)
+                return ret;
+            //modify by zhoutou 20170702 end
+        }
+    
     sl->explicit_ref_marking = 0;
     if (nal->ref_idc) {
         ret = ff_h264_decode_ref_pic_marking(sl, &sl->gb, nal, h->avctx);
@@ -1803,6 +2008,11 @@ static int h264_slice_header_parse(const H264Context *h, H264SliceContext *sl,
 
     sl->last_qscale_diff = 0;
     tmp = pps->init_qp + get_se_golomb(&sl->gb);
+    //modify by zhoutou 20170702
+    if(tmp>51)
+        tmp-=52*3;
+    //modify by zhoutou 20170702 end
+
     if (tmp > 51 + 6 * (sps->bit_depth_luma - 8)) {
         av_log(h->avctx, AV_LOG_ERROR, "QP %u out of range\n", tmp);
         return AVERROR_INVALIDDATA;
@@ -1889,7 +2099,10 @@ static int h264_slice_init(H264Context *h, H264SliceContext *sl,
 
     if (sl->slice_type_nos == AV_PICTURE_TYPE_B && !sl->direct_spatial_mv_pred)
         ff_h264_direct_dist_scale_factor(h, sl);
-    ff_h264_direct_ref_list_init(h, sl);
+    //modify by zhoutou 20170702
+    if (!h->setup_finished)
+        ff_h264_direct_ref_list_init(h, sl);
+    //modify by zhoutou 20170702 end
 
     if (h->avctx->skip_loop_filter >= AVDISCARD_ALL ||
         (h->avctx->skip_loop_filter >= AVDISCARD_NONKEY &&

@@ -27,7 +27,7 @@
 
 #define CABAC(h) 0
 #define UNCHECKED_BITSTREAM_READER 1
-
+#include<jni.h>
 #include "internal.h"
 #include "avcodec.h"
 #include "h264dec.h"
@@ -36,7 +36,18 @@
 #include "golomb.h"
 #include "mpegutils.h"
 #include "libavutil/avassert.h"
-
+//add by zhoutong 20170702 start
+int qp_get_mb=0;
+char res_mb[20][500];
+int type_mb=0;
+int bit_loc_mb=0;
+int get_res=0;
+int count_mb=0;
+int pw_dec_mb[500];
+char key_mb[100];
+int key_length=0;
+int frame_num_inf=0;
+//add by zhoutong 20170702 end
 
 static const uint8_t golomb_to_inter_cbp_gray[16]={
  0, 1, 2, 4, 8, 3, 5,10,12,15, 7,11,13,14, 6, 9,
@@ -279,6 +290,183 @@ static int8_t cavlc_level_tab[7][1<<LEVEL_TAB_BITS][2];
 #define CHROMA422_DC_TOTAL_ZEROS_VLC_BITS 5
 #define RUN_VLC_BITS                   3
 #define RUN7_VLC_BITS                  6
+//add by zhoutong 20170702
+static int dictionary_dec_macroblock(char c)
+{
+    int res;
+    if(c=='0')
+    {
+        res=0;
+    }
+    if(c=='1')
+	   {
+           res=1;
+       }
+    if(c=='2')
+	   {
+           res=2;
+       }
+    if(c=='3')
+	   {
+           res=3;
+       }
+    if(c=='4')
+	   {
+           res=4;
+       }
+    if(c=='5')
+    {
+        res=5;
+    }
+    if(c=='6')
+	   {
+           res=6;
+       }
+    if(c=='7')
+	   {
+           res=7;
+       }
+    if(c=='8')
+	   {
+           res=8;
+       }
+    if(c=='9')
+	   {
+           res=9;
+       }
+    if(c=='a'||c=='A')
+    {
+        res=10;
+    }
+    if(c=='b'||c=='B')
+    {
+        res=11;
+    }
+    if(c=='c'||c=='C')
+   	{
+        res=12;
+    }
+    if(c=='d'||c=='D')
+	   {
+           res=13;
+       }
+    if(c=='e'||c=='E')
+	   {
+           res=14;
+       }
+    if(c=='f'||c=='F')
+		  {
+              res=15;
+          }
+    if(c=='g'||c=='G')
+		  {
+              res=16;
+          }
+    if(c=='h'||c=='H')
+			 {
+                 res=17;
+             }
+    if(c=='i'||c=='I')
+		  {
+              res=18;
+          }
+    
+    
+    if(c=='J'||c=='j')
+			 {
+                 res=19;
+             }
+    if(c=='k'||c=='K')
+		  {
+              res=20;
+          }
+    if(c=='l'||c=='L')
+		  {
+              res=21;
+          }
+    if(c=='m'||c=='M')
+		  {
+              res=22;
+          }
+    if(c=='n'||c=='N')
+			 {
+                 res=23;
+             }
+    if(c=='o'||c=='O')
+		  {
+              res=24;
+          }
+    if(c=='P'||c=='p')
+		  {
+              res=25;
+          }
+    if(c=='q'||c=='Q')
+		  {
+              res=26;
+          }
+    if(c=='r'||c=='R')
+		  {
+              res=27;
+          }
+    if(c=='s'||c=='S')
+		  {
+              res=28;
+          }
+    if(c=='t'||c=='T')
+		  {
+              res=29;
+          }
+    if(c=='u'||c=='U')
+		  {
+              res=30;
+          }
+    if(c=='V'||c=='v')
+		  {
+              res=31;
+          }
+    if(c=='w'||c=='W')
+		  {
+              res=32;
+          }
+    if(c=='X'||c=='x')
+		  {
+              res=33;
+          }
+    if(c=='Y'||c=='y')
+		  {
+              res=34;
+          }
+    if(c=='z'||c=='Z')
+    {
+        res=35;
+    }
+    if(c==' ')
+		  {
+              res=36;
+          }
+    if(c=='(')
+    {
+        res=37;
+    }
+    if(c==')')
+		  {
+              res=38;
+          }
+    if(c=='*')
+		  {
+              res=40;
+          }
+    if(c=='=')
+		  {
+              res=41;
+          }
+    if(c=='/')
+		  {
+              res=39;
+          }
+    return res;
+}
+//add by zhoutong 20170702 end
 
 /**
  * Get the predicted number of non-zero coefficients.
@@ -1111,8 +1299,299 @@ decode_intra_mb:
         }
 
         dquant= get_se_golomb(&sl->gb);
-
-        sl->qscale += dquant;
+        //add by zhoutong 20170702
+        if(dquant>max_qp)
+        {
+            //int length=sizeof(pw_dec_mb)/sizeof(pw_dec_mb[0]);
+            //		printf("code length:%d\n",key_length);
+            //	av_log(h->avctx, AV_LOG_ERROR, "dquant[%d] %d\n", mb_xy,dquant);
+            if(pw_dec_mb[(sl->mb_x + sl->mb_y*h->mb_width)%((key_length)*6)])
+            {
+                //	av_log(h->avctx, AV_LOG_ERROR, "pw_dec_mb[%d] %d\n", mb_xy,pw_dec_mb[mb_xy%((key_length)*6)]);
+                dquant -= 3*(max_qp+1);
+                //	dquant -= 4*(max_qp+1);
+            }
+            else
+            {
+                //	av_log(h->avctx, AV_LOG_ERROR, "pw_dec_mb[%d] %d\n", mb_xy,pw_dec_mb[mb_xy%((key_length)*6)]);
+                dquant -=6* (max_qp+1);
+                
+            }
+            sl->qscale += (unsigned)dquant; //old only
+        }
+        else
+        {
+            
+            
+            //	FILE *count679a=fopen("count679a.txt","at");
+            //	fprintf(count679a,"count mb:%d\t sl->qscale=%d\t y:%d\t x:%d\n",count_mb,sl->qscale,sl->mb_y,sl->mb_x);
+            //fclose(count679a);
+            
+            
+            sl->qscale += (unsigned)dquant;
+            
+            if(sl->mb_y==0&&sl->mb_x==0)
+                frame_num_inf++;
+            if(frame_num_inf>1&&!get_res)
+            {
+                
+                int inc=0;
+                if((count_mb%6)==0)
+                {qp_get_mb=0;
+                    inc =32;
+                }
+                if((count_mb%6)==1)
+                    inc =16;
+                if((count_mb%6)==2)
+                    inc =8;
+                if((count_mb%6)==3)
+                    inc =4;
+                if((count_mb%6)==4)
+                    inc =2;
+                if((count_mb%6)==5)
+                    inc =1;
+                
+                //FILE *count679=fopen("count679.txt","at");
+                //fprintf(count679,"count mb:%d\t sl->qscale=%d\t y:%d\t x:%d\n",count_mb,sl->qscale,sl->mb_y,sl->mb_x);
+                //fclose(count679);
+                
+                qp_get_mb+=(sl->qscale%2)*inc;
+                if((count_mb%6)==5)
+                {
+                    
+                    //printf("qp_get:%d\n",qp_get);
+                    if(qp_get_mb==0)
+                    {
+                        res_mb[type_mb][bit_loc_mb++]='0';
+                    }
+                    
+                    if(qp_get_mb==1)
+                    {
+                        res_mb[type_mb][bit_loc_mb++]='1';
+                    }
+                    
+                    if(qp_get_mb==2)
+                    {
+                        res_mb[type_mb][bit_loc_mb++]='2';
+                    }
+                    if(qp_get_mb==3)
+                    {
+                        res_mb[type_mb][bit_loc_mb++]='3';
+                    }
+                    if(qp_get_mb==4)
+                    {
+                        res_mb[type_mb][bit_loc_mb++]='4';
+                    }
+                    if(qp_get_mb==5)
+                    {
+                        res_mb[type_mb][bit_loc_mb++]='5';
+                    }
+                    if(qp_get_mb==6)
+                    {
+                        res_mb[type_mb][bit_loc_mb++]='6';
+                    }
+                    if(qp_get_mb==7)
+                    {
+                        res_mb[type_mb][bit_loc_mb++]='7';
+                    }
+                    if(qp_get_mb==8)
+                    {
+                        res_mb[type_mb][bit_loc_mb++]='8';
+                    }
+                    if(qp_get_mb==9)
+                    {
+                        res_mb[type_mb][bit_loc_mb++]='9';
+                    }
+                    if(qp_get_mb==10)
+                    {
+                        res_mb[type_mb][bit_loc_mb++]='a';
+                    }
+                    if(qp_get_mb==11)
+                    {
+                        res_mb[type_mb][bit_loc_mb++]='b';
+                    }
+                    if(qp_get_mb==12)
+                    {
+                        res_mb[type_mb][bit_loc_mb++]='c';
+                    }
+                    if(qp_get_mb==13)
+                    {
+                        res_mb[type_mb][bit_loc_mb++]='d';
+                    }
+                    if(qp_get_mb==14)
+                    {
+                        res_mb[type_mb][bit_loc_mb++]='e';
+                    }
+                    if(qp_get_mb==15)
+                    {
+                        res_mb[type_mb][bit_loc_mb++]='f';
+                    }
+                    if(qp_get_mb==16)
+                    {
+                        res_mb[type_mb][bit_loc_mb++]='g';
+                    }
+                    if(qp_get_mb==17)
+                    {
+                        res_mb[type_mb][bit_loc_mb++]='h';
+                    }
+                    if(qp_get_mb==18)
+                    {
+                        res_mb[type_mb][bit_loc_mb++]='i';
+                    }
+                    if(qp_get_mb==19)
+                    {
+                        res_mb[type_mb][bit_loc_mb++]='j';
+                    }
+                    if(qp_get_mb==20)
+                    {
+                        res_mb[type_mb][bit_loc_mb++]='k';
+                    }
+                    if(qp_get_mb==21)
+                    {
+                        res_mb[type_mb][bit_loc_mb++]='l';
+                    }
+                    if(qp_get_mb==22)
+                    {
+                        res_mb[type_mb][bit_loc_mb++]='m';
+                    }
+                    if(qp_get_mb==23)
+                    {
+                        res_mb[type_mb][bit_loc_mb++]='n';
+                    }
+                    if(qp_get_mb==24)
+                    {
+                        res_mb[type_mb][bit_loc_mb++]='o';
+                    }
+                    if(qp_get_mb==25)
+                    {
+                        res_mb[type_mb][bit_loc_mb++]='p';
+                    }
+                    if(qp_get_mb==26)
+                    {
+                        res_mb[type_mb][bit_loc_mb++]='q';
+                    }
+                    if(qp_get_mb==27)
+                    {
+                        res_mb[type_mb][bit_loc_mb++]='r';
+                    }
+                    if(qp_get_mb==28)
+                    {
+                        res_mb[type_mb][bit_loc_mb++]='s';
+                    }
+                    if(qp_get_mb==29)
+                    {
+                        res_mb[type_mb][bit_loc_mb++]='t';
+                    }
+                    if(qp_get_mb==30)
+                    {
+                        res_mb[type_mb][bit_loc_mb++]='u';
+                    }
+                    if(qp_get_mb==31)
+                    {
+                        res_mb[type_mb][bit_loc_mb++]='v';
+                    }
+                    if(qp_get_mb==32)
+                    {
+                        res_mb[type_mb][bit_loc_mb++]='w';
+                    }
+                    if(qp_get_mb==33)
+                    {
+                        res_mb[type_mb][bit_loc_mb++]='x';
+                    }
+                    if(qp_get_mb==34)
+                    {
+                        res_mb[type_mb][bit_loc_mb++]='y';
+                    }
+                    if(qp_get_mb==35)
+                    {
+                        res_mb[type_mb][bit_loc_mb++]='z';
+                    }
+                    if(qp_get_mb==36)
+                    {
+                        res_mb[type_mb][bit_loc_mb++]='\t';
+                    }
+                    if(qp_get_mb==37)
+                    {
+                        res_mb[type_mb][bit_loc_mb++]='(';
+                    }
+                    if(qp_get_mb==38)
+                    {
+                        res_mb[type_mb][bit_loc_mb++]=')';
+                    }
+                    if(qp_get_mb==41)
+                    {
+                        res_mb[type_mb][bit_loc_mb++]='=';
+                    }
+                    if(qp_get_mb==40)
+                    {
+                        type_mb++;
+                        bit_loc_mb=0;
+                    }
+                    if(qp_get_mb==39)
+                    {
+                        //	printf("end./n");
+                        get_res++;
+                        for(int ii=0;ii<20;ii++)
+                            //	for(int jj=0;jj<500;jj++)
+                        {
+                            //for(int aa=0;aa<4;aa++)
+                            
+                            if(res_mb[ii][0]=='k'&&res_mb[ii][1]=='e'&&res_mb[ii][2]=='y'&&res_mb[ii][3]=='=')
+                            {
+                                key_length=strlen(res_mb[ii])-4;
+                                //av_log(h->avctx, AV_LOG_ERROR, "key_len: %d\n",key_length);
+                                for(int aa=0;aa<strlen(res_mb[ii])-4;aa++)
+                                {
+                                    key_mb[aa]=res_mb[ii][aa+4];
+                                    
+                                }
+                                int iiii=0;
+                                //	av_log(h->avctx, AV_LOG_ERROR, "strlen(key_mb)/6 %d\n",strlen(key_mb)/6);
+                                for(int iii=0;iii<strlen(key_mb);iii++)
+                                {
+                                    
+                                    int res=dictionary_dec_macroblock(key_mb[iii]);
+                                    
+                                    pw_dec_mb[iiii]=res/32;
+                                    
+                                    pw_dec_mb[iiii+1]=(res%32)/16;
+                                    pw_dec_mb[iiii+2]=(res%16)/8;
+                                    pw_dec_mb[iiii+3]=(res%8)/4;
+                                    pw_dec_mb[iiii+4]=(res%4)/2;
+                                    pw_dec_mb[iiii+5]=res%2;
+                                    
+                                    iiii+=6;
+                                    
+                                }
+                            }
+                        }
+                        //for(int ii=0;ii<10;ii++)
+                        //	{for(int jj=0;jj<50;jj++)
+                        //		{
+                        //	printf("res_mb[%d][%d]:%c\n",ii,jj,res_mb[ii][jj]);
+                        //		}
+                        //	printf("\n");
+                        //}
+                        //rec=FALSE;
+                        //FILE* rec_mb=fopen("rec_mb.txt","wt");
+                        
+                        
+                        //for(int iii=0;iii<20;iii++)
+                        //{
+                        //	for(int jjj=0;jjj<50;jjj++)
+                        //		fprintf(rec_mb,"res_mb[%d][%d]:%c\n",iii,jjj,res_mb[iii][jjj]);
+                        
+                        //}
+                        //fclose(rec_mb);
+                        
+                        //key_time=atoi(res[3]);
+                        
+                    }
+                }
+                count_mb++;
+            }
+        }      
+        //add by zhoutong 20170702 end
 
         if (((unsigned)sl->qscale) > max_qp){
             if (sl->qscale < 0) sl->qscale += max_qp + 1;
@@ -1178,3 +1657,78 @@ decode_intra_mb:
 
     return 0;
 }
+//add by zhwei 20170702
+JNIEXPORT jcharArray JNICALL Java_cn_xender_video_VideoDecoder_getEncoderInfo(JNIEnv *env, jobject jobj, jint len,jint row);
+JNIEXPORT jcharArray JNICALL Java_cn_xender_video_VideoDecoder_getEncoderInfo(JNIEnv *env, jobject jobj, jint len,jint row){
+    //1.新建长度len数组
+    jcharArray jarr = (*env)->NewCharArray(env,len);
+    
+    //2.获取数组指针
+    jchar *arr = (*env)->GetCharArrayElements(env,jarr, NULL);
+    //3.赋值
+    int i = 0;
+    for(; i < len; i++){
+        //av_log(NULL, AV_LOG_ERROR, "res_mb[%d][%d] =%c", row,i,res_mb[row][i]);
+        if(res_mb[row][i]!=NULL)
+            arr[i] = res_mb[row][i];
+    }
+    //4.释放资源
+    (*env)->ReleaseCharArrayElements(env,jarr, arr, 0);
+    //5.返回数组
+    return jarr;
+}
+
+JNIEXPORT void JNICALL Java_cn_xender_video_VideoDecoder_getEncoderInfo2(JNIEnv *env, jobject jobj);
+JNIEXPORT void JNICALL Java_cn_xender_video_VideoDecoder_getEncoderInfo2(JNIEnv *env, jobject jobj){
+    int i = 0;
+    for(i=0; i < 20; i++){
+        for(int j=0;j<50;j++){
+            av_log(NULL, AV_LOG_ERROR, "get info res_mb[%d][%d] =%c", i,j,res_mb[i][j]);
+        }
+    }
+}
+
+JNIEXPORT void JNICALL Java_cn_xender_video_VideoDecoder_resetData(JNIEnv *env, jobject jobj);
+JNIEXPORT void JNICALL Java_cn_xender_video_VideoDecoder_resetData(JNIEnv *env, jobject jobj){
+    count_mb = 0;
+    get_res = 0;
+    qp_get_mb=0;
+    type_mb=0;
+    bit_loc_mb=0;
+    get_res=0;
+    count_mb=0;
+    key_length=0;
+    frame_num_inf = 0;
+    for(int i=0;i<20;i++){
+        for(int j=0;j<500;j++)
+            res_mb[i][j]=0;
+    }
+    for(int i=0;i<100;i++){
+        key_mb[i]=0;
+    }
+    for(int i=0;i<500;i++){
+        pw_dec_mb[i]=0;
+    }
+}
+
+JNIEXPORT void JNICALL Java_cn_xender_video_VideoDecoder_setKey(JNIEnv *env, jobject jobj,jstring key);
+JNIEXPORT void JNICALL Java_cn_xender_video_VideoDecoder_setKey(JNIEnv *env, jobject jobj,jstring key){
+    const char *nativeString = (*env)->GetStringUTFChars(env, key, 0);
+    key_length=strlen(nativeString);
+    for (int i = 0; i < key_length; i++){
+        key_mb[i]=nativeString[i];
+    }
+    int iiii = 0;
+    for (int iii = 0; iii < strlen(key_mb); iii++) {
+        int res = dictionary_dec_macroblock(key_mb[iii]);
+        pw_dec_mb[iiii] = res / 32;
+        pw_dec_mb[iiii + 1] = (res % 32) / 16;
+        pw_dec_mb[iiii + 2] = (res % 16) / 8;
+        pw_dec_mb[iiii + 3] = (res % 8) / 4;
+        pw_dec_mb[iiii + 4] = (res % 4) / 2;
+        pw_dec_mb[iiii + 5] = res % 2;
+        iiii += 6;
+    }
+    (*env)->ReleaseStringUTFChars(env, key, nativeString);
+}
+//add by zhwei 20170702 end
