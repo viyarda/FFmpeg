@@ -1616,17 +1616,14 @@ static int h264_field_start(H264Context *h, const H264SliceContext *sl,
      * We have to do that before the "dummy" in-between frame allocation,
      * since that can modify h->cur_pic_ptr. */
     if (h->first_field) {
-        //modify by zhoutou 20170702
-        int last_field = last_pic_structure == PICT_BOTTOM_FIELD;
         av_assert0(h->cur_pic_ptr);
         av_assert0(h->cur_pic_ptr->f->buf[0]);
         assert(h->cur_pic_ptr->reference != DELAYED_PIC_REF);
 
         /* Mark old field/frame as completed */
-        if (h->cur_pic_ptr->tf.owner[last_field] == h->avctx) {
-            ff_thread_report_progress(&h->cur_pic_ptr->tf, INT_MAX, last_field);
+        if (h->cur_pic_ptr->tf.owner == h->avctx) {
+            ff_thread_report_progress(&h->cur_pic_ptr->tf, INT_MAX,                           last_pic_structure == PICT_BOTTOM_FIELD);
         }
-        //modify by zhoutou 20170702 end
 
         /* figure out if we have a complementary field pair */
         if (!FIELD_PICTURE(h) || h->picture_structure == last_pic_structure) {
